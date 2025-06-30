@@ -5,6 +5,7 @@ Trackr is a comprehensive learning management application designed to help you e
 ## ✨ Features
 
 ### Core Functionality
+
 - **📋 Learning Paths**: Create organized collections of educational content
 - **🎥 Video Management**: Add individual YouTube videos or import entire playlists
 - **📊 Progress Tracking**: Monitor your learning progress with visual indicators
@@ -13,6 +14,7 @@ Trackr is a comprehensive learning management application designed to help you e
 - **🏷️ Tagging System**: Organize content with custom tags
 
 ### Advanced Features
+
 - **🔄 Drag & Drop**: Reorder videos within learning paths
 - **☁️ Cloud Sync**: Seamless synchronization across devices with Firebase
 - **📱 Offline Support**: Continue learning even without internet connection
@@ -21,6 +23,7 @@ Trackr is a comprehensive learning management application designed to help you e
 - **🔍 Search & Filter**: Find content quickly with powerful search tools
 
 ### User Experience
+
 - **🎨 Modern UI**: Clean, responsive design that works on all devices
 - **⚡ Fast Performance**: Optimized for speed with local-first architecture
 - **🌙 Focus Mode**: Distraction-free learning environment
@@ -29,7 +32,8 @@ Trackr is a comprehensive learning management application designed to help you e
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm or yarn package manager
 - Firebase account (for cloud sync)
 
@@ -37,14 +41,16 @@ Trackr is a comprehensive learning management application designed to help you e
 
 1. **Clone the repository**
    \`\`\`bash
-   git clone https://github.com/yourusername/trackr.git
+   git clone https://github.com/thebasilugo/trackr.git
    cd trackr
    \`\`\`
 
 2. **Install dependencies**
    \`\`\`bash
    npm install
+
    # or
+
    yarn install
    \`\`\`
 
@@ -62,7 +68,9 @@ Trackr is a comprehensive learning management application designed to help you e
 4. **Run the development server**
    \`\`\`bash
    npm run dev
+
    # or
+
    yarn dev
    \`\`\`
 
@@ -81,12 +89,14 @@ Trackr is a comprehensive learning management application designed to help you e
 ### Adding Content
 
 **Individual Videos:**
+
 1. Click "Add Video" in your learning path
 2. Paste a YouTube URL
 3. Add notes and tags (optional)
 4. Click "Add Video"
 
 **YouTube Playlists:**
+
 1. Click "Import Playlist" on the dashboard
 2. Paste a YouTube playlist URL
 3. All videos will be imported automatically
@@ -108,6 +118,7 @@ Trackr is a comprehensive learning management application designed to help you e
 ## 🛠️ Technology Stack
 
 ### Frontend
+
 - **Next.js 14**: React framework with App Router
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first CSS framework
@@ -115,10 +126,12 @@ Trackr is a comprehensive learning management application designed to help you e
 - **Lucide React**: Beautiful icons
 
 ### Backend & Database
+
 - **Firebase**: Authentication and Firestore database
 - **Local Storage**: Offline-first data persistence
 
 ### Additional Libraries
+
 - **@dnd-kit**: Drag and drop functionality
 - **React Hook Form**: Form management
 - **Sonner**: Toast notifications
@@ -127,19 +140,19 @@ Trackr is a comprehensive learning management application designed to help you e
 
 \`\`\`
 trackr/
-├── app/                    # Next.js app directory
-│   ├── path/[id]/         # Learning path pages
-│   ├── watch/[pathId]/[videoId]/ # Video watch pages
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Dashboard
-├── components/            # Reusable components
-│   ├── ui/               # shadcn/ui components
-│   ├── firebase-provider.tsx
-│   ├── video-card.tsx
-│   └── ...
-├── types/                # TypeScript type definitions
-├── lib/                  # Utility functions
-└── public/              # Static assets
+├── app/ # Next.js app directory
+│ ├── path/[id]/ # Learning path pages
+│ ├── watch/[pathId]/[videoId]/ # Video watch pages
+│ ├── layout.tsx # Root layout
+│ └── page.tsx # Dashboard
+├── components/ # Reusable components
+│ ├── ui/ # shadcn/ui components
+│ ├── firebase-provider.tsx
+│ ├── video-card.tsx
+│ └── ...
+├── types/ # TypeScript type definitions
+├── lib/ # Utility functions
+└── public/ # Static assets
 \`\`\`
 
 ## 🔧 Configuration
@@ -160,6 +173,7 @@ trackr/
 ## 📱 Offline Support
 
 Trackr works offline by default:
+
 - All data is stored locally first
 - Changes sync automatically when online
 - Offline indicator shows connection status
@@ -211,4 +225,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ by thebasilugo**
 
-*Escape tutorial hell. Start learning with purpose.*
+_Escape tutorial hell. Start learning with purpose._
