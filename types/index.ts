@@ -7,6 +7,7 @@ export interface Video {
   status: "not-started" | "in-progress" | "completed"
   notes?: string
   tags?: string[]
+  isFavorite?: boolean
   addedAt: string
   completedAt?: string
 }
@@ -27,4 +28,13 @@ export interface YouTubeVideoInfo {
   thumbnail: string
   duration: string
   videoId: string
+}
+
+export interface UserStats {
+  totalPaths: number
+  totalVideos: number
+  completedVideos: number
+  currentStreak: number
+  longestStreak: number
+  totalWatchTime: number
 }

@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle, Clock, Play, Edit, Save, X } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, Play, Edit, Save, X, Heart, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { useFirebase } from "@/components/firebase-provider"
 import type { LearningPath, Video } from "@/types"
 
 export default function WatchPage() {
@@ -16,28 +18,42 @@ export default function WatchPage() {
   const [video, setVideo] = useState<Video | null>(null)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [editedNotes, setEditedNotes] = useState("")
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [watchTime, setWatchTime] = useState(0)
+  const { syncData, loadData } = useFirebase()
 
   useEffect(() => {
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      const paths: LearningPath[] = JSON.parse(savedPaths)
-      const currentPath = paths.find((p) => p.id === params.pathId)
-      if (currentPath) {
-        setPath(currentPath)
-        const currentVideo = currentPath.videos.find((v) => v.id === params.videoId)
-        if (currentVideo) {
-          setVideo(currentVideo)
-          setEditedNotes(currentVideo.notes || "")
-        } else {
-          router.push(`/path/${params.pathId}`)
-        }
-      } else {
-        router.push("/")
-      }
-    }
-  }, [params.pathId, params.videoId, router])
+    loadVideoData()
+  }, [params.pathId, params.videoId])
 
-  const updateVideoStatus = (status: Video["status"]) => {
+  useEffect(() => {
+    // Simulate watch time tracking
+    const interval = setInterval(() => {
+      setWatchTime((prev) => prev + 1)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadVideoData = async () => {
+    const paths = await loadData()
+    const currentPath = paths.find((p) => p.id === params.pathId)
+    if (currentPath) {
+      setPath(currentPath)
+      const currentVideo = currentPath.videos.find((v) => v.id === params.videoId)
+      if (currentVideo) {
+        setVideo(currentVideo)
+        setEditedNotes(currentVideo.notes || "")
+        setIsFavorite(currentVideo.isFavorite || false)
+      } else {
+        router.push(`/path/${params.pathId}`)
+      }
+    } else {
+      router.push("/")
+    }
+  }
+
+  const updateVideoStatus = async (status: Video["status"]) => {
     if (!path || !video) return
 
     const updatedVideos = path.videos.map((v) =>
@@ -56,17 +72,14 @@ export default function WatchPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      const paths: LearningPath[] = JSON.parse(savedPaths)
-      const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
-      localStorage.setItem("trackr-paths", JSON.stringify(updatedPaths))
-      setPath(updatedPath)
-      setVideo({ ...video, status })
-    }
+    const paths = await loadData()
+    const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
+    await syncData(updatedPaths)
+    setPath(updatedPath)
+    setVideo({ ...video, status })
   }
 
-  const saveNotes = () => {
+  const saveNotes = async () => {
     if (!path || !video) return
 
     const updatedVideos = path.videos.map((v) =>
@@ -79,20 +92,57 @@ export default function WatchPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      const paths: LearningPath[] = JSON.parse(savedPaths)
-      const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
-      localStorage.setItem("trackr-paths", JSON.stringify(updatedPaths))
-      setPath(updatedPath)
-      setVideo({ ...video, notes: editedNotes.trim() || undefined })
-    }
-
+    const paths = await loadData()
+    const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
+    await syncData(updatedPaths)
+    setPath(updatedPath)
+    setVideo({ ...video, notes: editedNotes.trim() || undefined })
     setIsEditingNotes(false)
   }
 
+  const toggleFavorite = async () => {
+    if (!path || !video) return
+
+    const newFavoriteStatus = !isFavorite
+    setIsFavorite(newFavoriteStatus)
+
+    const updatedVideos = path.videos.map((v) => (v.id === video.id ? { ...v, isFavorite: newFavoriteStatus } : v))
+
+    const updatedPath = {
+      ...path,
+      videos: updatedVideos,
+      updatedAt: new Date().toISOString(),
+    }
+
+    const paths = await loadData()
+    const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
+    await syncData(updatedPaths)
+    setPath(updatedPath)
+    setVideo({ ...video, isFavorite: newFavoriteStatus })
+  }
+
+  const getNextVideo = () => {
+    if (!path || !video) return null
+    const currentIndex = path.videos.findIndex((v) => v.id === video.id)
+    return currentIndex < path.videos.length - 1 ? path.videos[currentIndex + 1] : null
+  }
+
+  const goToNextVideo = () => {
+    const nextVideo = getNextVideo()
+    if (nextVideo) {
+      router.push(`/watch/${path?.id}/${nextVideo.id}`)
+    }
+  }
+
   if (!path || !video) {
-    return <div>Loading...</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading video...</p>
+        </div>
+      </div>
+    )
   }
 
   const getEmbedUrl = (url: string) => {
@@ -122,6 +172,19 @@ export default function WatchPage() {
     }
   }
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  const getPathProgress = () => {
+    const completedVideos = path.videos.filter((v) => v.status === "completed").length
+    return Math.round((completedVideos / path.videos.length) * 100)
+  }
+
+  const nextVideo = getNextVideo()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
@@ -131,6 +194,10 @@ export default function WatchPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to {path.name}
           </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <Badge variant="secondary">Watch time: {formatTime(watchTime)}</Badge>
+            <Badge variant="secondary">{getPathProgress()}% Complete</Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -148,9 +215,9 @@ export default function WatchPage() {
                 </div>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div>
+                    <div className="flex-1">
                       <h1 className="text-2xl font-bold text-slate-900 mb-2">{video.title}</h1>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mb-4">
                         <Badge className={getStatusColor(video.status)}>
                           {getStatusIcon(video.status)}
                           <span className="ml-1">{video.status.replace("-", " ")}</span>
@@ -163,6 +230,10 @@ export default function WatchPage() {
                           ))}
                       </div>
                     </div>
+                    <Button variant="outline" size="sm" onClick={toggleFavorite}>
+                      <Heart className={`w-4 h-4 mr-1 ${isFavorite ? "fill-current text-red-500" : ""}`} />
+                      {isFavorite ? "Favorited" : "Favorite"}
+                    </Button>
                   </div>
 
                   {/* Status Actions */}
@@ -192,13 +263,30 @@ export default function WatchPage() {
                       Completed
                     </Button>
                   </div>
+
+                  {/* Next Video */}
+                  {nextVideo && (
+                    <div className="border-t pt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-slate-600 mb-1">Up next:</p>
+                          <p className="font-medium text-slate-900">{nextVideo.title}</p>
+                        </div>
+                        <Button onClick={goToNextVideo}>
+                          <SkipForward className="w-4 h-4 mr-1" />
+                          Next Video
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Notes Panel */}
-          <div>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Notes Panel */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -252,8 +340,32 @@ export default function WatchPage() {
               </CardContent>
             </Card>
 
+            {/* Path Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Path Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>{path.name}</span>
+                      <span>{getPathProgress()}%</span>
+                    </div>
+                    <Progress value={getPathProgress()} className="h-2" />
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    <p>
+                      {path.videos.filter((v) => v.status === "completed").length} of {path.videos.length} videos
+                      completed
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Learning Tips */}
-            <Card className="mt-6">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-lg">💡 Learning Tips</CardTitle>
               </CardHeader>
@@ -264,6 +376,7 @@ export default function WatchPage() {
                   <p>• Mark as "In Progress" when you start</p>
                   <p>• Only mark "Completed" when you understand the content</p>
                   <p>• Review your notes later to retain knowledge</p>
+                  <p>• Use favorites to mark important videos</p>
                 </div>
               </CardContent>
             </Card>

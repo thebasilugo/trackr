@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Play, CheckCircle, Clock, Search, Filter } from "lucide-react"
+import { ArrowLeft, Plus, Play, CheckCircle, Clock, Search, Filter, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -11,6 +11,67 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { LearningPath, Video } from "@/types"
 import { AddVideoDialog } from "@/components/add-video-dialog"
 import { VideoCard } from "@/components/video-card"
+import { useFirebase } from "@/components/firebase-provider"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+
+function SortableVideoCard({
+  video,
+  index,
+  onStatusChange,
+  onDelete,
+  onUpdateNotes,
+  pathId,
+}: {
+  video: Video
+  index: number
+  onStatusChange: (videoId: string, status: Video["status"]) => void
+  onDelete: (videoId: string) => void
+  onUpdateNotes: (videoId: string, notes: string) => void
+  pathId: string
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: video.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded"
+        >
+          <GripVertical className="w-4 h-4 text-slate-400" />
+        </div>
+      </div>
+      <div className="ml-8">
+        <VideoCard
+          video={video}
+          index={index}
+          onStatusChange={onStatusChange}
+          onDelete={onDelete}
+          onUpdateNotes={onUpdateNotes}
+          pathId={pathId}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function PathPage() {
   const params = useParams()
@@ -19,31 +80,55 @@ export default function PathPage() {
   const [showAddVideo, setShowAddVideo] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "not-started" | "in-progress" | "completed">("all")
+  const { syncData, loadData } = useFirebase()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
   useEffect(() => {
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      const paths: LearningPath[] = JSON.parse(savedPaths)
-      const currentPath = paths.find((p) => p.id === params.id)
-      if (currentPath) {
-        setPath(currentPath)
-      } else {
-        router.push("/")
-      }
-    }
-  }, [params.id, router])
+    loadPathData()
+  }, [params.id])
 
-  const updatePath = (updatedPath: LearningPath) => {
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      const paths: LearningPath[] = JSON.parse(savedPaths)
-      const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
-      localStorage.setItem("trackr-paths", JSON.stringify(updatedPaths))
-      setPath(updatedPath)
+  const loadPathData = async () => {
+    const paths = await loadData()
+    const currentPath = paths.find((p) => p.id === params.id)
+    if (currentPath) {
+      setPath(currentPath)
+    } else {
+      router.push("/")
     }
   }
 
-  const handleAddVideo = (videoData: Omit<Video, "id" | "addedAt">) => {
+  const updatePath = async (updatedPath: LearningPath) => {
+    const paths = await loadData()
+    const updatedPaths = paths.map((p) => (p.id === updatedPath.id ? updatedPath : p))
+    await syncData(updatedPaths)
+    setPath(updatedPath)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (active.id !== over?.id && path) {
+      const oldIndex = path.videos.findIndex((video) => video.id === active.id)
+      const newIndex = path.videos.findIndex((video) => video.id === over?.id)
+
+      const newVideos = arrayMove(path.videos, oldIndex, newIndex)
+      const updatedPath = {
+        ...path,
+        videos: newVideos,
+        updatedAt: new Date().toISOString(),
+      }
+
+      await updatePath(updatedPath)
+    }
+  }
+
+  const handleAddVideo = async (videoData: Omit<Video, "id" | "addedAt">) => {
     if (!path) return
 
     const newVideo: Video = {
@@ -58,10 +143,10 @@ export default function PathPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    updatePath(updatedPath)
+    await updatePath(updatedPath)
   }
 
-  const handleVideoStatusChange = (videoId: string, status: Video["status"]) => {
+  const handleVideoStatusChange = async (videoId: string, status: Video["status"]) => {
     if (!path) return
 
     const updatedVideos = path.videos.map((video) =>
@@ -80,10 +165,10 @@ export default function PathPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    updatePath(updatedPath)
+    await updatePath(updatedPath)
   }
 
-  const handleDeleteVideo = (videoId: string) => {
+  const handleDeleteVideo = async (videoId: string) => {
     if (!path) return
 
     const updatedPath = {
@@ -92,11 +177,34 @@ export default function PathPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    updatePath(updatedPath)
+    await updatePath(updatedPath)
+  }
+
+  const handleUpdateNotes = async (videoId: string, notes: string) => {
+    if (!path) return
+
+    const updatedVideos = path.videos.map((video) =>
+      video.id === videoId ? { ...video, notes: notes.trim() || undefined } : video,
+    )
+
+    const updatedPath = {
+      ...path,
+      videos: updatedVideos,
+      updatedAt: new Date().toISOString(),
+    }
+
+    await updatePath(updatedPath)
   }
 
   if (!path) {
-    return <div>Loading...</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading learning path...</p>
+        </div>
+      </div>
+    )
   }
 
   const getProgress = () => {
@@ -112,17 +220,6 @@ export default function PathPage() {
     const matchesStatus = statusFilter === "all" || video.status === statusFilter
     return matchesSearch && matchesStatus
   })
-
-  const getStatusIcon = (status: Video["status"]) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-600" />
-      case "in-progress":
-        return <Clock className="w-4 h-4 text-yellow-600" />
-      default:
-        return <Play className="w-4 h-4 text-slate-400" />
-    }
-  }
 
   const getStatusCount = (status: Video["status"]) => {
     return path.videos.filter((video) => video.status === status).length
@@ -221,7 +318,7 @@ export default function PathPage() {
           </div>
         </div>
 
-        {/* Videos List */}
+        {/* Videos List with Drag and Drop */}
         <div className="space-y-4">
           {filteredVideos.length === 0 ? (
             <Card>
@@ -244,16 +341,21 @@ export default function PathPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredVideos.map((video, index) => (
-              <VideoCard
-                key={video.id}
-                video={video}
-                index={index}
-                onStatusChange={handleVideoStatusChange}
-                onDelete={handleDeleteVideo}
-                pathId={path.id}
-              />
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={filteredVideos.map((v) => v.id)} strategy={verticalListSortingStrategy}>
+                {filteredVideos.map((video, index) => (
+                  <SortableVideoCard
+                    key={video.id}
+                    video={video}
+                    index={index}
+                    onStatusChange={handleVideoStatusChange}
+                    onDelete={handleDeleteVideo}
+                    onUpdateNotes={handleUpdateNotes}
+                    pathId={path.id}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 

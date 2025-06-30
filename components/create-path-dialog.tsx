@@ -24,14 +24,14 @@ interface CreatePathDialogProps {
 }
 
 const PRESET_PATHS = [
-  { name: "Frontend Development", icon: "💻", color: "#3B82F6", description: "Master modern frontend technologies" },
-  { name: "Backend Development", icon: "⚙️", color: "#10B981", description: "Build robust server-side applications" },
-  { name: "Cybersecurity", icon: "🔒", color: "#EF4444", description: "Learn security fundamentals and practices" },
-  { name: "UI/UX Design", icon: "🎨", color: "#8B5CF6", description: "Design beautiful and user-friendly interfaces" },
-  { name: "Data Science", icon: "📊", color: "#F59E0B", description: "Analyze data and build ML models" },
-  { name: "DevOps", icon: "🚀", color: "#06B6D4", description: "Master deployment and infrastructure" },
+  { name: "Web Development", icon: "💻", color: "#3B82F6", description: "Master modern web technologies" },
   { name: "Mobile Development", icon: "📱", color: "#EC4899", description: "Build native and cross-platform apps" },
-  { name: "Personal Development", icon: "🌱", color: "#84CC16", description: "Grow your soft skills and mindset" },
+  { name: "Data Science", icon: "📊", color: "#F59E0B", description: "Analyze data and build ML models" },
+  { name: "Digital Marketing", icon: "📈", color: "#10B981", description: "Master online marketing strategies" },
+  { name: "Photography", icon: "📸", color: "#8B5CF6", description: "Learn the art of visual storytelling" },
+  { name: "Music Production", icon: "🎵", color: "#06B6D4", description: "Create and produce music" },
+  { name: "Language Learning", icon: "🌍", color: "#84CC16", description: "Master a new language" },
+  { name: "Fitness & Health", icon: "💪", color: "#EF4444", description: "Improve your physical wellbeing" },
 ]
 
 const COLORS = ["#3B82F6", "#10B981", "#EF4444", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899", "#84CC16"]
@@ -105,7 +105,7 @@ export function CreatePathDialog({ open, onOpenChange, onCreatePath }: CreatePat
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Frontend Development"
+                placeholder="e.g., Digital Photography Masterclass"
                 required
               />
             </div>

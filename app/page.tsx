@@ -8,23 +8,34 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { CreatePathDialog } from "@/components/create-path-dialog"
+import { ImportPlaylistDialog } from "@/components/import-playlist-dialog"
+import { useFirebase } from "@/components/firebase-provider"
 import type { LearningPath } from "@/types"
+import { ConnectionStatus } from "@/components/connection-status"
 
 export default function Dashboard() {
   const [paths, setPaths] = useState<LearningPath[]>([])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const { isOnline, syncData, loadData } = useFirebase()
 
   useEffect(() => {
-    const savedPaths = localStorage.getItem("trackr-paths")
-    if (savedPaths) {
-      setPaths(JSON.parse(savedPaths))
-    } else {
-      // Initialize with sample data
+    loadInitialData()
+  }, [])
+
+  const loadInitialData = async () => {
+    try {
+      const loadedPaths = await loadData()
+      setPaths(loadedPaths)
+    } catch (error) {
+      console.error("Failed to load data:", error)
+      // Fallback to sample data
       const samplePaths: LearningPath[] = [
         {
           id: "1",
-          name: "Frontend Development",
-          description: "Master modern frontend technologies",
+          name: "Web Development Fundamentals",
+          description: "Master the basics of modern web development",
           color: "#3B82F6",
           icon: "💻",
           videos: [],
@@ -33,21 +44,22 @@ export default function Dashboard() {
         },
         {
           id: "2",
-          name: "Backend Development",
-          description: "Build robust server-side applications",
+          name: "Digital Photography",
+          description: "Learn the art and science of photography",
           color: "#10B981",
-          icon: "⚙️",
+          icon: "📸",
           videos: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
       ]
       setPaths(samplePaths)
-      localStorage.setItem("trackr-paths", JSON.stringify(samplePaths))
+    } finally {
+      setIsLoading(false)
     }
-  }, [])
+  }
 
-  const handleCreatePath = (newPath: Omit<LearningPath, "id" | "createdAt" | "updatedAt">) => {
+  const handleCreatePath = async (newPath: Omit<LearningPath, "id" | "createdAt" | "updatedAt">) => {
     const path: LearningPath = {
       ...newPath,
       id: Date.now().toString(),
@@ -56,7 +68,23 @@ export default function Dashboard() {
     }
     const updatedPaths = [...paths, path]
     setPaths(updatedPaths)
-    localStorage.setItem("trackr-paths", JSON.stringify(updatedPaths))
+    await syncData(updatedPaths)
+  }
+
+  const handleImportPlaylist = async (playlistData: { name: string; videos: any[] }) => {
+    const path: LearningPath = {
+      id: Date.now().toString(),
+      name: playlistData.name,
+      description: `Imported playlist with ${playlistData.videos.length} videos`,
+      color: "#8B5CF6",
+      icon: "📺",
+      videos: playlistData.videos,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    const updatedPaths = [...paths, path]
+    setPaths(updatedPaths)
+    await syncData(updatedPaths)
   }
 
   const getPathProgress = (path: LearningPath) => {
@@ -81,6 +109,17 @@ export default function Dashboard() {
 
   const stats = getTotalStats()
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading your learning paths...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -88,15 +127,22 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">📚 Trackr</h1>
-              <p className="text-slate-600 text-lg">
-                Learn Smart, Not Stuck. Escape tutorial hell with organized learning paths.
-              </p>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-bold text-slate-900">📚 Trackr</h1>
+                <ConnectionStatus />
+              </div>
+              <p className="text-slate-600 text-lg">Your Learning Journey, Organized and Synced.</p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              New Learning Path
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowImportDialog(true)} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Import Playlist
+              </Button>
+              <Button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                New Learning Path
+              </Button>
+            </div>
           </div>
 
           {/* Stats Overview */}
@@ -208,8 +254,13 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Create Path Dialog */}
+        {/* Dialogs */}
         <CreatePathDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onCreatePath={handleCreatePath} />
+        <ImportPlaylistDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          onImportPlaylist={handleImportPlaylist}
+        />
       </div>
     </div>
   )

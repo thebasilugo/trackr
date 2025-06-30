@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Play, CheckCircle, Clock, MoreVertical, ExternalLink, Edit, Trash2, Save, X } from "lucide-react"
+import { Play, CheckCircle, Clock, MoreVertical, ExternalLink, Edit, Trash2, Save, X, Heart } from "lucide-react"
 import Link from "next/link"
 import type { Video } from "@/types"
 
@@ -15,12 +15,14 @@ interface VideoCardProps {
   index: number
   onStatusChange: (videoId: string, status: Video["status"]) => void
   onDelete: (videoId: string) => void
+  onUpdateNotes: (videoId: string, notes: string) => void
   pathId: string
 }
 
-export function VideoCard({ video, index, onStatusChange, onDelete, pathId }: VideoCardProps) {
+export function VideoCard({ video, index, onStatusChange, onDelete, onUpdateNotes, pathId }: VideoCardProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [editedNotes, setEditedNotes] = useState(video.notes || "")
+  const [isFavorite, setIsFavorite] = useState(video.isFavorite || false)
 
   const getStatusColor = (status: Video["status"]) => {
     switch (status) {
@@ -45,8 +47,13 @@ export function VideoCard({ video, index, onStatusChange, onDelete, pathId }: Vi
   }
 
   const handleSaveNotes = () => {
-    // In a real app, you'd update the video notes here
+    onUpdateNotes(video.id, editedNotes)
     setIsEditingNotes(false)
+  }
+
+  const toggleFavorite = () => {
+    setIsFavorite(!isFavorite)
+    // In a real app, you'd also update this in the database
   }
 
   return (
@@ -57,13 +64,18 @@ export function VideoCard({ video, index, onStatusChange, onDelete, pathId }: Vi
           <div className="flex-shrink-0">
             <div className="relative">
               <img
-                src={video.thumbnail || "/placeholder.svg"}
+                src={video.thumbnail || "/placeholder.svg?height=90&width=160"}
                 alt={video.title}
-                className="w-32 h-20 object-cover rounded-lg"
+                className="w-40 h-24 object-cover rounded-lg"
               />
               <div className={`absolute top-2 left-2 p-1 rounded-full ${getStatusColor(video.status)}`}>
                 {getStatusIcon(video.status)}
               </div>
+              {isFavorite && (
+                <div className="absolute top-2 right-2 p-1 rounded-full bg-red-50">
+                  <Heart className="w-4 h-4 text-red-500 fill-current" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -105,6 +117,10 @@ export function VideoCard({ video, index, onStatusChange, onDelete, pathId }: Vi
                   <DropdownMenuItem onClick={() => onStatusChange(video.id, "completed")}>
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Mark as Completed
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={toggleFavorite}>
+                    <Heart className={`w-4 h-4 mr-2 ${isFavorite ? "fill-current text-red-500" : ""}`} />
+                    {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsEditingNotes(!isEditingNotes)}>
                     <Edit className="w-4 h-4 mr-2" />
